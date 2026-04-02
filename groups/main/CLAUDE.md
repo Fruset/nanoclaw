@@ -160,6 +160,23 @@ Datum: YYYY-MM-DD
 - Eventuella saker att följa upp
 ```
 
+## Plugins & Verktyg
+
+Du har följande plugins installerade — använd dem aktivt:
+
+- **context7** — Slå upp aktuell dokumentation för libs/frameworks. Använd ALLTID innan du kodar med ett bibliotek. Dina interna kunskaper kan vara föråldrade.
+- **superpowers** — Brainstorming, planering, TDD, debugging-workflows. Kör `/brainstorm` innan kreativt arbete.
+- **frontend-design** — Bygga snygga UI:s. Kör denna vid frontend-arbete.
+- **feature-dev** — Strukturerad feature-utveckling med arkitekturplanering.
+- **code-review** — Granska din egen kod innan leverans.
+- **skill-creator** — Skapa och testa NanoClaw-skills.
+- **playground** — Skapa interaktiva HTML-prototyper.
+- **codex** — Delegera uppgifter till OpenAI Codex som extra agent.
+- **gamet** — Persona-driven utveckling med GAMET review framework.
+
+### Viktigt om versioner
+Lita ALDRIG på dina interna kunskaper om biblioteksversioner, API-syntax eller konfiguration. Använd context7 för att slå upp aktuell dokumentation. Next.js 16, React 19, Tailwind 4 — allt ändras snabbt.
+
 ## Sub-agenter & Context
 
 Du har tillgång till `Task` och `TeamCreate` för att delegera arbete. **Använd dem aktivt.**
