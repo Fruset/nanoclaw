@@ -85,7 +85,7 @@ export class StatusTracker {
     };
 
     this.tracked.set(messageId, msg);
-    this.enqueueSend(msg, '\u{1F440}');
+    // Skip automatic 👀 reaction — let Göran react naturally via his own personality
     this.persist();
     return true;
   }

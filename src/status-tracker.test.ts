@@ -58,10 +58,9 @@ describe('StatusTracker', () => {
       // Wait for all reaction sends to complete
       await tracker.flush();
 
-      expect(deps.sendReaction).toHaveBeenCalledTimes(4);
+      expect(deps.sendReaction).toHaveBeenCalledTimes(3);
       const emojis = deps.sendReaction.mock.calls.map((c) => c[2]);
       expect(emojis).toEqual([
-        '\u{1F440}',
         '\u{1F4AD}',
         '\u{1F504}',
         '\u{2705}',
@@ -77,7 +76,7 @@ describe('StatusTracker', () => {
       expect(result).toBe(false);
 
       await tracker.flush();
-      expect(deps.sendReaction).toHaveBeenCalledTimes(3);
+      expect(deps.sendReaction).toHaveBeenCalledTimes(2);
     });
 
     it('rejects duplicate transitions (DONE -> DONE is no-op)', async () => {
@@ -88,7 +87,7 @@ describe('StatusTracker', () => {
       expect(result).toBe(false);
 
       await tracker.flush();
-      expect(deps.sendReaction).toHaveBeenCalledTimes(2);
+      expect(deps.sendReaction).toHaveBeenCalledTimes(1);
     });
 
     it('allows FAILED from any non-terminal state', async () => {
@@ -97,7 +96,7 @@ describe('StatusTracker', () => {
       await tracker.flush();
 
       const emojis = deps.sendReaction.mock.calls.map((c) => c[2]);
-      expect(emojis).toEqual(['\u{1F440}', '\u{274C}']);
+      expect(emojis).toEqual(['\u{274C}']);
     });
 
     it('rejects FAILED after DONE', async () => {
@@ -108,7 +107,7 @@ describe('StatusTracker', () => {
       expect(result).toBe(false);
 
       await tracker.flush();
-      expect(deps.sendReaction).toHaveBeenCalledTimes(2);
+      expect(deps.sendReaction).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -129,7 +128,7 @@ describe('StatusTracker', () => {
       expect(second).toBe(false);
 
       await tracker.flush();
-      expect(deps.sendReaction).toHaveBeenCalledTimes(1);
+      expect(deps.sendReaction).toHaveBeenCalledTimes(0);
     });
   });
 
@@ -187,7 +186,6 @@ describe('StatusTracker', () => {
 
       await tracker.flush();
       expect(order).toEqual([
-        '\u{1F440}',
         '\u{1F4AD}',
         '\u{1F504}',
         '\u{2705}',
@@ -309,10 +307,10 @@ describe('StatusTracker', () => {
       tracker.heartbeatCheck();
       await tracker.flush();
 
-      // Only the 👀 and 💭 reactions, no ❌
-      expect(deps.sendReaction).toHaveBeenCalledTimes(2);
+      // Only the 💭 reaction, no ❌
+      expect(deps.sendReaction).toHaveBeenCalledTimes(1);
       const emojis = deps.sendReaction.mock.calls.map((c) => c[2]);
-      expect(emojis).toEqual(['👀', '💭']);
+      expect(emojis).toEqual(['💭']);
     });
 
     it('skips RECEIVED messages within grace period even if container is dead', async () => {
@@ -325,9 +323,8 @@ describe('StatusTracker', () => {
       tracker.heartbeatCheck();
       await tracker.flush();
 
-      // Only the 👀 reaction, no ❌
-      expect(deps.sendReaction).toHaveBeenCalledTimes(1);
-      expect(deps.sendReaction.mock.calls[0][2]).toBe('👀');
+      // No reaction sent, no ❌
+      expect(deps.sendReaction).toHaveBeenCalledTimes(0);
     });
 
     it('fails RECEIVED messages after grace period when container is dead', async () => {
@@ -360,8 +357,7 @@ describe('StatusTracker', () => {
       tracker.heartbeatCheck();
       await tracker.flush();
 
-      expect(deps.sendReaction).toHaveBeenCalledTimes(1);
-      expect(deps.sendReaction.mock.calls[0][2]).toBe('👀');
+      expect(deps.sendReaction).toHaveBeenCalledTimes(0);
     });
 
     it('detects stuck messages beyond timeout', async () => {
@@ -447,6 +443,7 @@ describe('StatusTracker', () => {
       });
 
       tracker.markReceived('msg1', 'main@s.whatsapp.net', false);
+      tracker.markThinking('msg1');
 
       // First attempt fires immediately
       await vi.advanceTimersByTimeAsync(0);
@@ -476,6 +473,7 @@ describe('StatusTracker', () => {
       });
 
       tracker.markReceived('msg1', 'main@s.whatsapp.net', false);
+      tracker.markThinking('msg1');
 
       await vi.advanceTimersByTimeAsync(10_000);
       await tracker.flush();

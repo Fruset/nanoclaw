@@ -48,6 +48,7 @@ import {
   setSession,
   storeChatMetadata,
   storeMessage,
+  storeMessageDirect,
 } from './db.js';
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
@@ -386,6 +387,17 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
         );
         if (text) {
           await channel.sendMessage(chatJid, text);
+          // Store bot response in DB for history/debugging
+          storeMessageDirect({
+            id: `bot-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            chat_jid: chatJid,
+            sender: 'bot',
+            sender_name: ASSISTANT_NAME,
+            content: `${ASSISTANT_NAME}: ${text}`,
+            timestamp: new Date().toISOString(),
+            is_from_me: true,
+            is_bot_message: true,
+          });
           outputSentToUser = true;
         }
         // Only reset idle timer on actual results, not session-update markers (result: null)
