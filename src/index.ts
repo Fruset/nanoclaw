@@ -6,6 +6,7 @@ import { OneCLI } from '@onecli-sh/sdk';
 import {
   ASSISTANT_NAME,
   CREDENTIAL_PROXY_PORT,
+  DASHBOARD_API_PORT,
   DEFAULT_TRIGGER,
   getTriggerPattern,
   GROUPS_DIR,
@@ -16,6 +17,7 @@ import {
   TIMEZONE,
 } from './config.js';
 import { startCredentialProxy } from './credential-proxy.js';
+import { startDashboardApi } from './dashboard-api.js';
 import './channels/index.js';
 import {
   getChannelFactory,
@@ -787,6 +789,22 @@ async function main(): Promise<void> {
   for (const [jid, group] of Object.entries(registeredGroups)) {
     ensureOneCLIAgent(jid, group);
   }
+
+  await startDashboardApi(DASHBOARD_API_PORT, '127.0.0.1', () => ({
+    containerStatus: Object.fromEntries(
+      Object.keys(registeredGroups).map((jid) => [
+        jid,
+        { active: queue.isActive(jid) },
+      ]),
+    ),
+    registeredGroups: Object.fromEntries(
+      Object.entries(registeredGroups).map(([jid, g]) => [
+        jid,
+        { name: g.name, folder: g.folder, isMain: g.isMain },
+      ]),
+    ),
+  }));
+  logger.info({ port: DASHBOARD_API_PORT }, 'Dashboard API ready');
 
   restoreRemoteControl();
 
