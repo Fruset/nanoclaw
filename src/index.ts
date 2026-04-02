@@ -953,6 +953,14 @@ async function main(): Promise<void> {
         throw new Error('Channel does not support sendImage');
       await channel.sendImage(jid, imageBuffer, mimeType, caption);
     },
+    sendVoice: async (jid: string, audioBuffer: Buffer, mimeType: string) => {
+      const channel = findChannel(channels, jid);
+      if (channel?.sendVoice) {
+        await channel.sendVoice(jid, audioBuffer, mimeType);
+      } else {
+        logger.warn({ jid }, 'No sendVoice capability for channel');
+      }
+    },
     sendReaction: async (jid, emoji, messageId) => {
       const channel = findChannel(channels, jid);
       if (!channel) throw new Error(`No channel for JID: ${jid}`);
