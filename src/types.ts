@@ -52,6 +52,9 @@ export interface NewMessage {
   is_from_me?: boolean;
   is_bot_message?: boolean;
   thread_id?: string;
+  reply_to_message_id?: string;
+  reply_to_message_content?: string;
+  reply_to_sender_name?: string;
 }
 
 export interface ScheduledTask {
@@ -90,27 +93,8 @@ export interface Channel {
   disconnect(): Promise<void>;
   // Optional: typing indicator. Channels that support it implement it.
   setTyping?(jid: string, isTyping: boolean): Promise<void>;
-  // Optional: send an image with optional caption
-  sendImage?(
-    jid: string,
-    imageBuffer: Buffer,
-    mimeType: string,
-    caption?: string,
-  ): Promise<void>;
   // Optional: sync group/chat names from the platform.
   syncGroups?(force: boolean): Promise<void>;
-  // Optional: reaction support
-  sendReaction?(
-    chatJid: string,
-    messageKey: {
-      id: string;
-      remoteJid: string;
-      fromMe?: boolean;
-      participant?: string;
-    },
-    emoji: string,
-  ): Promise<void>;
-  reactToLatestMessage?(chatJid: string, emoji: string): Promise<void>;
 }
 
 // Callback type that channels use to deliver inbound messages
