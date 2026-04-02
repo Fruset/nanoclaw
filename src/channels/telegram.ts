@@ -1,8 +1,12 @@
+import fs from 'fs';
 import https from 'https';
+import path from 'path';
 import { Api, Bot } from 'grammy';
 
-import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
+import { ASSISTANT_NAME, GROUPS_DIR, TRIGGER_PATTERN } from '../config.js';
+import { storeReaction } from '../db.js';
 import { readEnvFile } from '../env.js';
+import { processImage } from '../image.js';
 import { logger } from '../logger.js';
 import { registerChannel, ChannelOpts } from './registry.js';
 import {
@@ -201,7 +205,51 @@ export class TelegramChannel implements Channel {
       });
     };
 
-    this.bot.on('message:photo', (ctx) => storeNonText(ctx, '[Photo]'));
+    this.bot.on('message:photo', async (ctx) => {
+      const chatJid = `tg:${ctx.chat.id}`;
+      const group = this.opts.registeredGroups()[chatJid];
+      if (!group) return;
+
+      try {
+        // Get the largest photo size (last in the array)
+        const photos = ctx.message.photo;
+        const largest = photos[photos.length - 1];
+        const file = await ctx.api.getFile(largest.file_id);
+        const url = `https://api.telegram.org/file/bot${this.botToken}/${file.file_path}`;
+
+        // Download the image
+        const buffer = await new Promise<Buffer>((resolve, reject) => {
+          https.get(url, (res) => {
+            const chunks: Buffer[] = [];
+            res.on('data', (c: Buffer) => chunks.push(c));
+            res.on('end', () => resolve(Buffer.concat(chunks)));
+            res.on('error', reject);
+          }).on('error', reject);
+        });
+
+        const groupDir = path.join(GROUPS_DIR, group.folder);
+        const caption = ctx.message.caption ?? '';
+        const result = await processImage(buffer, groupDir, caption);
+
+        const timestamp = new Date(ctx.message.date * 1000).toISOString();
+        const senderName = ctx.from?.first_name || ctx.from?.username || 'Unknown';
+        const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
+
+        this.opts.onChatMetadata(chatJid, timestamp, undefined, 'telegram', isGroup);
+        this.opts.onMessage(chatJid, {
+          id: ctx.message.message_id.toString(),
+          chat_jid: chatJid,
+          sender: ctx.from?.id?.toString() || '',
+          sender_name: senderName,
+          content: result ? result.content : `[Photo]${caption ? ` ${caption}` : ''}`,
+          timestamp,
+          is_from_me: false,
+        });
+      } catch (err) {
+        logger.warn({ err, jid: chatJid }, 'Telegram image download failed');
+        storeNonText(ctx, '[Photo]');
+      }
+    });
     this.bot.on('message:video', (ctx) => storeNonText(ctx, '[Video]'));
     this.bot.on('message:voice', (ctx) => storeNonText(ctx, '[Voice message]'));
     this.bot.on('message:audio', (ctx) => storeNonText(ctx, '[Audio]'));
@@ -215,6 +263,51 @@ export class TelegramChannel implements Channel {
     });
     this.bot.on('message:location', (ctx) => storeNonText(ctx, '[Location]'));
     this.bot.on('message:contact', (ctx) => storeNonText(ctx, '[Contact]'));
+
+    // Handle message reactions
+    this.bot.on('message_reaction', (ctx) => {
+      try {
+        const update = ctx.messageReaction;
+        const chatJid = `tg:${update.chat.id}`;
+        const group = this.opts.registeredGroups()[chatJid];
+        if (!group) return;
+
+        const messageId = update.message_id.toString();
+        const reactorJid = update.user?.id?.toString() || '';
+        const reactorName = update.user?.first_name || update.user?.username || 'Unknown';
+        const timestamp = new Date(update.date * 1000).toISOString();
+
+        // new_reaction contains the current reactions from this user
+        const newReactions = update.new_reaction || [];
+        if (newReactions.length > 0) {
+          for (const reaction of newReactions) {
+            const emoji = (reaction as any).emoji || '';
+            if (emoji) {
+              storeReaction({
+                message_id: messageId,
+                message_chat_jid: chatJid,
+                reactor_jid: reactorJid,
+                reactor_name: reactorName,
+                emoji,
+                timestamp,
+              });
+            }
+          }
+        } else {
+          // All reactions removed — store empty emoji to delete
+          storeReaction({
+            message_id: messageId,
+            message_chat_jid: chatJid,
+            reactor_jid: reactorJid,
+            reactor_name: reactorName,
+            emoji: '',
+            timestamp,
+          });
+        }
+      } catch (err) {
+        logger.warn({ err }, 'Telegram reaction handling failed');
+      }
+    });
 
     // Handle errors gracefully
     this.bot.catch((err) => {
@@ -292,6 +385,30 @@ export class TelegramChannel implements Channel {
       this.bot = null;
       logger.info('Telegram bot stopped');
     }
+  }
+
+  async sendReaction(
+    chatJid: string,
+    messageKey: { id: string; remoteJid: string; fromMe?: boolean; participant?: string },
+    emoji: string,
+  ): Promise<void> {
+    if (!this.bot) return;
+    try {
+      const numericChatId = chatJid.replace(/^tg:/, '');
+      const messageId = parseInt(messageKey.id, 10);
+      if (isNaN(messageId)) return;
+      await this.bot.api.setMessageReaction(numericChatId, messageId, [
+        { type: 'emoji', emoji } as any,
+      ]);
+    } catch (err) {
+      logger.debug({ chatJid, err }, 'Failed to send Telegram reaction');
+    }
+  }
+
+  async reactToLatestMessage(chatJid: string, emoji: string): Promise<void> {
+    // Telegram doesn't easily expose the latest message ID without tracking it,
+    // so this is a best-effort implementation
+    logger.debug({ chatJid, emoji }, 'reactToLatestMessage not fully supported on Telegram');
   }
 
   async setTyping(jid: string, isTyping: boolean): Promise<void> {

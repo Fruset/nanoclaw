@@ -39,6 +39,7 @@ import {
 } from '../db.js';
 import { isImageMessage, processImage } from '../image.js';
 import { logger } from '../logger.js';
+import { registerChannel, ChannelOpts } from './registry.js';
 import pino from 'pino';
 
 // Baileys requires a pino-compatible logger instance
@@ -633,3 +634,5 @@ export class WhatsAppChannel implements Channel {
     }
   }
 }
+
+registerChannel('whatsapp', (opts: ChannelOpts) => new WhatsAppChannel(opts));
