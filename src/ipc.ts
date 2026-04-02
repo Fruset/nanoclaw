@@ -18,6 +18,11 @@ import { RegisteredGroup } from './types.js';
 
 export interface IpcDeps {
   sendMessage: (jid: string, text: string) => Promise<void>;
+  sendMessageWithSender?: (
+    jid: string,
+    text: string,
+    sender: string,
+  ) => Promise<void>;
   sendImage?: (
     jid: string,
     imageBuffer: Buffer,
@@ -102,7 +107,13 @@ export function startIpcWatcher(deps: IpcDeps): void {
                   isMain ||
                   (targetGroup && targetGroup.folder === sourceGroup)
                 ) {
-                  await deps.sendMessage(data.chatJid, data.text);
+                  // Routning via swarm-bot om avsändare anges och chatten är Telegram
+                  const isTelegram = (data.chatJid as string).startsWith('tg:');
+                  if (isTelegram && data.sender && deps.sendMessageWithSender) {
+                    await deps.sendMessageWithSender(data.chatJid, data.text, data.sender);
+                  } else {
+                    await deps.sendMessage(data.chatJid, data.text);
+                  }
                   // Store bot response in DB for history
                   storeMessageDirect({
                     id: `ipc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -118,6 +129,7 @@ export function startIpcWatcher(deps: IpcDeps): void {
                     {
                       chatJid: data.chatJid,
                       sourceGroup,
+                      sender: data.sender,
                       text: data.text.slice(0, 200),
                     },
                     'IPC message sent',

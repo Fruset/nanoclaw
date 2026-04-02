@@ -54,6 +54,7 @@ import {
 } from './db.js';
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
+import { telegramBotPool } from './channels/telegram-pool.js';
 import { startIpcWatcher } from './ipc.js';
 import { findChannel, formatMessages, formatOutbound } from './router.js';
 import {
@@ -963,6 +964,17 @@ async function main(): Promise<void> {
       const channel = findChannel(channels, jid);
       if (!channel) throw new Error(`No channel for JID: ${jid}`);
       return channel.sendMessage(jid, text);
+    },
+    sendMessageWithSender: async (jid, text, sender) => {
+      // Försök skicka via pool-bot; faller tillbaka till huvudbot om pool saknas
+      const sentViaPool = await telegramBotPool.sendMessage(jid, text, sender);
+      if (!sentViaPool) {
+        // Ingen pool-bot konfigurerad för denna avsändare — använd huvudboten
+        const channel = findChannel(channels, jid);
+        if (channel) {
+          await channel.sendMessage(jid, text);
+        }
+      }
     },
     sendImage: async (jid, imageBuffer, mimeType, caption) => {
       const channel = findChannel(channels, jid);

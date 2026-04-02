@@ -89,6 +89,19 @@ Text i `<internal>`-taggar loggas men skickas inte till användaren.
 
 Som sub-agent, använd bara `send_message` om huvudagenten instruerar dig.
 
+## Telegram Swarm — Bot Identities
+
+When responding via `send_message`, set `sender` to use a dedicated bot identity:
+
+| sender value | Bot | Rename? |
+|---|---|---|
+| `PM`, `PM Bot`, `Scrum Master`, `ProjektLedare` | PM Bot (slot 0) | No |
+| `Arkitekt`, `Arkitekten`, `Byggare`, `DB`, `DevOps` | Generalist 1 (slot 1) | Yes — to role name |
+| `Designer`, `Copywriter`, `Researcher`, `Testare` | Generalist 2 (slot 2) | Yes — to role name |
+| `GAMET`, `GAMET Bot`, `Reviewer`, `Säkerhetsagent`, `Granskare` | GAMET Bot (slot 3) | No |
+
+Unknown sender values fall back to the main bot (Göran P).
+
 ## Workspace
 
 Filer sparas i `/workspace/group/`. Använd för anteckningar, research, eller annat som ska bestå.
