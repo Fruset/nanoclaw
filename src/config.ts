@@ -55,6 +55,10 @@ export const CREDENTIAL_PROXY_PORT = parseInt(
   process.env.CREDENTIAL_PROXY_PORT || '3001',
   10,
 );
+export const DASHBOARD_API_PORT = parseInt(
+  process.env.DASHBOARD_API_PORT || '4100',
+  10,
+);
 export const ONECLI_URL =
   process.env.ONECLI_URL || envConfig.ONECLI_URL || 'http://localhost:10254';
 export const MAX_MESSAGES_PER_PROMPT = Math.max(
