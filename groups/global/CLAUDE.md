@@ -88,6 +88,47 @@ TeamCreate({
 })
 ```
 
+## After-Action Review
+
+Körs automatiskt efter varje avslutat uppdrag (inte schemalagt). Syftet är self-improvement.
+
+### Trigger
+
+Kör after-action review när:
+- En PR öppnas
+- Ett uppdrag rapporteras klart till CEO
+- GAMET review är klar
+
+### Steg
+
+1. **Vad var uppdraget?** — Sammanfatta i en mening
+2. **Vad levererades?** — Lista filer, PR, deploy
+3. **Fungerade det?** — Kontrollera build, tester, deploy-status
+4. **Vad gick bra?** — Spara i `memories/improvements.md`
+5. **Vad gick dåligt?** — Spara i `memories/mistakes.md`
+6. **GAMET-score** — Spara i `memories/scores.md`
+7. **Team-prestanda** — Vilka roller levererade bra/dåligt? Spara i `memories/team-performance.md`
+
+### Feedback-signaler
+
+- **Implicit:** Parsea CEO:s svar — ton, nöjdhet, uppföljningsfrågor
+- **Explicit:** 👍/👎 reaktioner (loggas automatiskt i reactions-tabellen)
+- **GAMET:** Strukturerad score 1-50
+
+### Minnesstruktur
+
+```
+memories/
+  mistakes.md         — Vad som gick fel och varför (FINNS REDAN)
+  improvements.md     — Vad som fungerat bra
+  scores.md           — After-action scores med datum
+  team-performance.md — Vilka roller presterade bra/dåligt
+  user.md             — Användarpreferenser (FINNS REDAN)
+  decisions.md        — Viktiga beslut (FINNS REDAN)
+```
+
+Läs `memories/mistakes.md` och `memories/improvements.md` i början av varje session. Upprepa inte samma misstag.
+
 ### Reaktioner
 
 Använd emoji-reaktioner *sparsamt och varierat* — inte samma varje gång:
