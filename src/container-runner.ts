@@ -42,6 +42,7 @@ export interface ContainerInput {
   chatJid: string;
   isMain: boolean;
   isScheduledTask?: boolean;
+  isVoiceMessage?: boolean;
   assistantName?: string;
   script?: string;
   imageAttachments?: Array<{ relativePath: string; mediaType: string }>;
@@ -361,6 +362,15 @@ export async function runContainerAgent(
 
   const containerName = `nanoclaw-${safeName}-${Date.now()}`;
   const containerArgs = buildContainerArgs(mounts, containerName, input.isMain);
+
+  // Voice context — lets agent know user sent a voice message, so it should prefer send_voice
+  if (input.isVoiceMessage) {
+    // Insert env var before the image name (last element)
+    const imageIdx = containerArgs.lastIndexOf(CONTAINER_IMAGE);
+    if (imageIdx !== -1) {
+      containerArgs.splice(imageIdx, 0, '-e', 'NANOCLAW_IS_VOICE=1');
+    }
+  }
 
   logger.debug(
     {

@@ -45,6 +45,71 @@ async function sendTelegramMessage(
   }
 }
 
+/**
+ * Download a Telegram voice file and transcribe it via OpenAI Whisper.
+ * Returns the transcript string, or null on failure (caller falls back to placeholder).
+ */
+async function transcribeVoiceMessage(
+  fileId: string,
+  botToken: string,
+): Promise<string | null> {
+  const { readEnvFile } = await import('../env.js');
+  const env = readEnvFile(['OPENAI_API_KEY']);
+  if (!env.OPENAI_API_KEY) {
+    logger.warn('OPENAI_API_KEY not set — voice transcription disabled');
+    return null;
+  }
+
+  try {
+    // Resolve file path via Telegram getFile API
+    const metaRes = await fetch(
+      `https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`,
+    );
+    const meta = (await metaRes.json()) as { ok: boolean; result?: { file_path?: string } };
+    if (!meta.ok || !meta.result?.file_path) {
+      logger.warn({ fileId }, 'Telegram getFile failed');
+      return null;
+    }
+
+    // Download the OGG/OPUS audio buffer
+    const audioRes = await fetch(
+      `https://api.telegram.org/file/bot${botToken}/${meta.result.file_path}`,
+    );
+    if (!audioRes.ok) {
+      logger.warn({ fileId }, 'Telegram voice file download failed');
+      return null;
+    }
+    const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
+
+    // POST to Whisper API as multipart/form-data
+    const FormData = (await import('form-data')).default;
+    const form = new FormData();
+    form.append('file', audioBuffer, { filename: 'voice.ogg', contentType: 'audio/ogg' });
+    form.append('model', 'whisper-1');
+
+    const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+        ...form.getHeaders(),
+      },
+      body: form as any,
+    });
+
+    if (!whisperRes.ok) {
+      const errText = await whisperRes.text();
+      logger.warn({ status: whisperRes.status, errText }, 'Whisper API error');
+      return null;
+    }
+
+    const result = (await whisperRes.json()) as { text?: string };
+    return result.text?.trim() || null;
+  } catch (err) {
+    logger.warn({ err, fileId }, 'Voice transcription failed');
+    return null;
+  }
+}
+
 export class TelegramChannel implements Channel {
   name = 'telegram';
 
@@ -263,7 +328,49 @@ export class TelegramChannel implements Channel {
       }
     });
     this.bot.on('message:video', (ctx) => storeNonText(ctx, '[Video]'));
-    this.bot.on('message:voice', (ctx) => storeNonText(ctx, '[Voice message]'));
+    this.bot.on('message:voice', async (ctx) => {
+      const chatJid = `tg:${ctx.chat.id}`;
+      const group = this.opts.registeredGroups()[chatJid];
+      if (!group) return;
+
+      const fileId = ctx.message.voice?.file_id;
+      const timestamp = new Date(ctx.message.date * 1000).toISOString();
+      const senderName =
+        ctx.from?.first_name ||
+        ctx.from?.username ||
+        ctx.from?.id?.toString() ||
+        'Unknown';
+      const isGroup =
+        ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
+
+      this.opts.onChatMetadata(chatJid, timestamp, undefined, 'telegram', isGroup);
+
+      let content: string;
+      if (fileId) {
+        const transcript = await transcribeVoiceMessage(fileId, this.botToken);
+        content = transcript
+          ? `[Voice message: ${transcript}]`
+          : '[Voice message]';
+      } else {
+        content = '[Voice message]';
+      }
+
+      this.opts.onMessage(chatJid, {
+        id: ctx.message.message_id.toString(),
+        chat_jid: chatJid,
+        sender: ctx.from?.id?.toString() || '',
+        sender_name: senderName,
+        content,
+        timestamp,
+        is_from_me: false,
+        is_voice: true,
+      });
+
+      logger.info(
+        { chatJid, senderName, transcribed: content !== '[Voice message]' },
+        'Telegram voice message processed',
+      );
+    });
     this.bot.on('message:audio', (ctx) => storeNonText(ctx, '[Audio]'));
     this.bot.on('message:document', (ctx) => {
       const name = ctx.message.document?.file_name || 'file';
@@ -422,6 +529,15 @@ export class TelegramChannel implements Channel {
     } catch (err) {
       logger.error({ jid, err }, 'Failed to send Telegram image');
     }
+  }
+
+  async sendVoice(jid: string, audioBuffer: Buffer, _mimeType: string): Promise<void> {
+    if (!this.bot) throw new Error('Telegram bot not connected');
+    const chatId = jid.replace(/^tg:/, '');
+
+    // grammY accepts InputFile from Buffer
+    const { InputFile } = await import('grammy');
+    await this.bot.api.sendVoice(chatId, new InputFile(audioBuffer, 'voice.ogg'));
   }
 
   async sendReaction(

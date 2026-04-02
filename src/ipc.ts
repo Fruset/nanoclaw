@@ -29,6 +29,11 @@ export interface IpcDeps {
     mimeType: string,
     caption?: string,
   ) => Promise<void>;
+  sendVoice?: (
+    jid: string,
+    audioBuffer: Buffer,
+    mimeType: string,
+  ) => Promise<void>;
   sendReaction?: (
     jid: string,
     emoji: string,
@@ -211,6 +216,40 @@ export function startIpcWatcher(deps: IpcDeps): void {
                   logger.warn(
                     { chatJid: data.chatJid, sourceGroup },
                     'Unauthorized IPC reaction attempt blocked',
+                  );
+                }
+              } else if (
+                data.type === 'voice' &&
+                data.chatJid &&
+                data.audioBase64 &&
+                deps.sendVoice
+              ) {
+                const targetGroup = registeredGroups[data.chatJid];
+                if (
+                  isMain ||
+                  (targetGroup && targetGroup.folder === sourceGroup)
+                ) {
+                  try {
+                    const audioBuffer = Buffer.from(data.audioBase64, 'base64');
+                    await deps.sendVoice(
+                      data.chatJid,
+                      audioBuffer,
+                      data.mimeType || 'audio/ogg',
+                    );
+                    logger.info(
+                      { chatJid: data.chatJid, sourceGroup },
+                      'IPC voice message sent',
+                    );
+                  } catch (err) {
+                    logger.error(
+                      { chatJid: data.chatJid, err },
+                      'IPC voice send failed',
+                    );
+                  }
+                } else {
+                  logger.warn(
+                    { chatJid: data.chatJid, sourceGroup },
+                    'Unauthorized IPC voice attempt blocked',
                   );
                 }
               }

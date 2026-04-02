@@ -51,6 +51,7 @@ import {
   storeChatMetadata,
   storeMessage,
   storeMessageDirect,
+  wasLastMessageVoice,
 } from './db.js';
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
@@ -74,6 +75,7 @@ import {
   isSessionCommandAllowed,
 } from './session-commands.js';
 import { startSchedulerLoop } from './task-scheduler.js';
+import { synthesizeSpeechElevenLabs } from './tts.js';
 import { Channel, NewMessage, RegisteredGroup } from './types.js';
 import { parseImageReferences } from './image.js';
 import { StatusTracker } from './status-tracker.js';
@@ -402,6 +404,22 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
             is_bot_message: true,
           });
           outputSentToUser = true;
+
+          // Auto-reply with voice if the triggering message was a voice message
+          if (wasLastMessageVoice(chatJid)) {
+            const voiceChannel = findChannel(channels, chatJid);
+            if (voiceChannel?.sendVoice) {
+              try {
+                const voiceBuffer = await synthesizeSpeechElevenLabs(text);
+                if (voiceBuffer) {
+                  await voiceChannel.sendVoice(chatJid, voiceBuffer, 'audio/ogg');
+                  logger.info({ chatJid }, 'Auto-replied with voice (TTS)');
+                }
+              } catch (err) {
+                logger.warn({ err, chatJid }, 'Auto-voice reply failed, text reply already sent');
+              }
+            }
+          }
         }
         // Only reset idle timer on actual results, not session-update markers (result: null)
         resetIdleTimer();
@@ -517,6 +535,7 @@ async function runAgent(
         groupFolder: group.folder,
         chatJid,
         isMain,
+        isVoiceMessage: wasLastMessageVoice(chatJid),
         assistantName: ASSISTANT_NAME,
         ...(imageAttachments.length > 0 && { imageAttachments }),
       },
@@ -982,6 +1001,14 @@ async function main(): Promise<void> {
       if (!channel.sendImage)
         throw new Error('Channel does not support sendImage');
       await channel.sendImage(jid, imageBuffer, mimeType, caption);
+    },
+    sendVoice: async (jid: string, audioBuffer: Buffer, mimeType: string) => {
+      const channel = findChannel(channels, jid);
+      if (channel?.sendVoice) {
+        await channel.sendVoice(jid, audioBuffer, mimeType);
+      } else {
+        logger.warn({ jid }, 'No sendVoice capability for channel');
+      }
     },
     sendReaction: async (jid, emoji, messageId) => {
       const channel = findChannel(channels, jid);

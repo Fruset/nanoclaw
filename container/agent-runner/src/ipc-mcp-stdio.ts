@@ -131,6 +131,95 @@ server.tool(
 );
 
 server.tool(
+  'send_voice',
+  'Convert text to speech and send as a voice message. Uses ElevenLabs TTS. The audio is sent as a voice message (not a file). Use this when the user originally sent a voice message and expects a voice reply, or whenever a spoken response is more natural. When NANOCLAW_IS_VOICE env is "1", the user sent a voice message — prefer this tool for your reply.',
+  {
+    text: z.string().describe('The text to speak aloud. Keep it concise for best results.'),
+    voice_id: z
+      .string()
+      .optional()
+      .describe(
+        'ElevenLabs voice ID to use. Defaults to ELEVENLABS_VOICE_ID env var or the ElevenLabs default.',
+      ),
+  },
+  async (args) => {
+    const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
+    if (!elevenLabsKey) {
+      return {
+        content: [{ type: 'text' as const, text: 'ELEVENLABS_API_KEY not set — voice send unavailable.' }],
+        isError: true,
+      };
+    }
+
+    const voiceId = args.voice_id || process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM'; // Rachel (default)
+
+    try {
+      // Call ElevenLabs TTS API → MP3 buffer
+      const ttsRes = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+        {
+          method: 'POST',
+          headers: {
+            'xi-api-key': elevenLabsKey,
+            'Content-Type': 'application/json',
+            Accept: 'audio/mpeg',
+          },
+          body: JSON.stringify({
+            text: args.text,
+            model_id: 'eleven_multilingual_v2',
+            voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+          }),
+        },
+      );
+
+      if (!ttsRes.ok) {
+        const errText = await ttsRes.text();
+        return {
+          content: [{ type: 'text' as const, text: `ElevenLabs API error ${ttsRes.status}: ${errText}` }],
+          isError: true,
+        };
+      }
+
+      const mp3Buffer = Buffer.from(await ttsRes.arrayBuffer());
+
+      // Convert MP3 → OGG Opus using ffmpeg (required for Telegram sendVoice)
+      // Use execFile (not exec/execSync) to avoid shell injection
+      const { execFile } = await import('child_process');
+      const { promisify } = await import('util');
+      const execFileAsync = promisify(execFile);
+
+      const tmpMp3 = `/tmp/voice-${Date.now()}-in.mp3`;
+      const tmpOgg = `/tmp/voice-${Date.now()}-out.ogg`;
+      fs.writeFileSync(tmpMp3, mp3Buffer);
+
+      await execFileAsync('ffmpeg', ['-y', '-i', tmpMp3, '-c:a', 'libopus', '-b:a', '64k', tmpOgg]);
+
+      const oggBuffer = fs.readFileSync(tmpOgg);
+      fs.unlinkSync(tmpMp3);
+      fs.unlinkSync(tmpOgg);
+
+      const audioBase64 = oggBuffer.toString('base64');
+
+      writeIpcFile(MESSAGES_DIR, {
+        type: 'voice',
+        chatJid,
+        audioBase64,
+        mimeType: 'audio/ogg',
+        groupFolder,
+        timestamp: new Date().toISOString(),
+      });
+
+      return { content: [{ type: 'text' as const, text: 'Voice message sent.' }] };
+    } catch (err: any) {
+      return {
+        content: [{ type: 'text' as const, text: `Voice send failed: ${err?.message || err}` }],
+        isError: true,
+      };
+    }
+  },
+);
+
+server.tool(
   'react_to_message',
   'React to a message with an emoji. Omit message_id to react to the most recent message in the chat.',
   {
