@@ -52,6 +52,7 @@ export interface NewMessage {
   is_from_me?: boolean;
   is_bot_message?: boolean;
   thread_id?: string;
+  is_voice?: boolean;
 }
 
 export interface ScheduledTask {
@@ -96,6 +97,12 @@ export interface Channel {
     imageBuffer: Buffer,
     mimeType: string,
     caption?: string,
+  ): Promise<void>;
+  // Optional: send a voice message (OGG Opus buffer)
+  sendVoice?(
+    jid: string,
+    audioBuffer: Buffer,
+    mimeType: string,
   ): Promise<void>;
   // Optional: sync group/chat names from the platform.
   syncGroups?(force: boolean): Promise<void>;
