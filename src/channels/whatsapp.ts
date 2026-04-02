@@ -474,6 +474,26 @@ export class WhatsAppChannel implements Channel {
     this.sock?.end(undefined);
   }
 
+  async sendImage(
+    jid: string,
+    imageBuffer: Buffer,
+    mimeType: string,
+    caption?: string,
+  ): Promise<void> {
+    if (!this.sock) throw new Error('Not connected to WhatsApp');
+    try {
+      await this.sock.sendMessage(jid, {
+        image: imageBuffer,
+        mimetype: mimeType,
+        caption: caption || undefined,
+      });
+      logger.info({ jid, size: imageBuffer.length, caption: !!caption }, 'WhatsApp image sent');
+    } catch (err) {
+      logger.error({ jid, err }, 'Failed to send WhatsApp image');
+      throw err;
+    }
+  }
+
   async setTyping(jid: string, isTyping: boolean): Promise<void> {
     try {
       const status = isTyping ? 'composing' : 'paused';

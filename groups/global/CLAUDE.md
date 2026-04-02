@@ -199,6 +199,24 @@ Innan du presenterar något som "klart", kör ALLTID:
 
 Om något misslyckas — fixa det innan du meddelar användaren. Säg aldrig "det finns ett build-fel men annars funkar det".
 
+### Visuell verifiering med screenshots
+
+Efter att du deployat eller byggt klart, ta alltid en screenshot och skicka den:
+
+```bash
+# Ta en screenshot av sidan
+agent-browser open https://preview-url.vercel.app
+agent-browser wait --load networkidle
+agent-browser screenshot preview.png --full
+```
+
+Skicka bilden:
+- Använd `send_image` med sökvägen till screenshoten och en kort caption
+- Granska konsol-loggar: `agent-browser errors` och `agent-browser console`
+- Om det finns fel i konsolen — fixa dem först, ta en ny screenshot
+
+Detta ger användaren visuell bekräftelse utan att behöva öppna länken själv.
+
 ## Message Formatting
 
 Format messages based on the channel you're responding to. Check your group folder name:

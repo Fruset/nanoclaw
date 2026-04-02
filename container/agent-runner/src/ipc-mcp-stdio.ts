@@ -68,6 +68,69 @@ server.tool(
 );
 
 server.tool(
+  'send_image',
+  'Send an image to the user or group. Use this to share screenshots, generated images, or visual results. The image must exist as a file in your workspace.',
+  {
+    imagePath: z
+      .string()
+      .describe(
+        'Path to the image file (relative to /workspace/group/ or absolute)',
+      ),
+    caption: z
+      .string()
+      .optional()
+      .describe('Optional caption to include with the image'),
+  },
+  async (args) => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // Resolve path relative to workspace
+    let fullPath = args.imagePath;
+    if (!path.default.isAbsolute(fullPath)) {
+      fullPath = path.default.resolve('/workspace/group', fullPath);
+    }
+
+    if (!fs.default.existsSync(fullPath)) {
+      return {
+        content: [
+          { type: 'text' as const, text: `Image not found: ${args.imagePath}` },
+        ],
+      };
+    }
+
+    // Read image and encode as base64
+    const buffer = fs.default.readFileSync(fullPath);
+    const base64 = buffer.toString('base64');
+    const ext = path.default.extname(fullPath).toLowerCase();
+    const mimeType =
+      ext === '.png'
+        ? 'image/png'
+        : ext === '.jpg' || ext === '.jpeg'
+          ? 'image/jpeg'
+          : ext === '.gif'
+            ? 'image/gif'
+            : ext === '.webp'
+              ? 'image/webp'
+              : 'image/png';
+
+    const data: Record<string, string | undefined> = {
+      type: 'image',
+      chatJid,
+      imageBase64: base64,
+      mimeType,
+      caption: args.caption || undefined,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    };
+
+    writeIpcFile(MESSAGES_DIR, data);
+
+    return { content: [{ type: 'text' as const, text: 'Image sent.' }] };
+  },
+);
+
+server.tool(
   'react_to_message',
   'React to a message with an emoji. Omit message_id to react to the most recent message in the chat.',
   {

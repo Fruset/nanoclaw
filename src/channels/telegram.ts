@@ -400,6 +400,27 @@ export class TelegramChannel implements Channel {
     }
   }
 
+  async sendImage(
+    jid: string,
+    imageBuffer: Buffer,
+    mimeType: string,
+    caption?: string,
+  ): Promise<void> {
+    if (!this.bot) return;
+    try {
+      const numericId = jid.replace(/^tg:/, '');
+      const { InputFile } = await import('grammy');
+      await this.bot.api.sendPhoto(
+        numericId,
+        new InputFile(imageBuffer, 'image.jpg'),
+        { caption: caption || undefined },
+      );
+      logger.info({ jid, size: imageBuffer.length, caption: !!caption }, 'Telegram image sent');
+    } catch (err) {
+      logger.error({ jid, err }, 'Failed to send Telegram image');
+    }
+  }
+
   async sendReaction(
     chatJid: string,
     messageKey: {

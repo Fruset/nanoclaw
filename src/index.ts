@@ -925,6 +925,12 @@ async function main(): Promise<void> {
       if (!channel) throw new Error(`No channel for JID: ${jid}`);
       return channel.sendMessage(jid, text);
     },
+    sendImage: async (jid, imageBuffer, mimeType, caption) => {
+      const channel = findChannel(channels, jid);
+      if (!channel) throw new Error(`No channel for JID: ${jid}`);
+      if (!channel.sendImage) throw new Error('Channel does not support sendImage');
+      await channel.sendImage(jid, imageBuffer, mimeType, caption);
+    },
     sendReaction: async (jid, emoji, messageId) => {
       const channel = findChannel(channels, jid);
       if (!channel) throw new Error(`No channel for JID: ${jid}`);
