@@ -134,7 +134,7 @@ export function cleanupOrphans(): void {
       try {
         stopContainer(name);
       } catch {
-        /* already stopped */
+        // Timed out or already stopped — either way, move on
       }
     }
     if (orphans.length > 0) {

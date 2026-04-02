@@ -755,6 +755,15 @@ function ensureContainerSystemRunning(): void {
 }
 
 async function main(): Promise<void> {
+  // Auto-sync .env to container env directory
+  const envSrc = path.join(process.cwd(), '.env');
+  const envDst = path.join(process.cwd(), 'data', 'env', 'env');
+  if (fs.existsSync(envSrc)) {
+    fs.mkdirSync(path.dirname(envDst), { recursive: true });
+    fs.copyFileSync(envSrc, envDst);
+    logger.info('Synced .env to data/env/env');
+  }
+
   ensureContainerSystemRunning();
   await startCredentialProxy(CREDENTIAL_PROXY_PORT, '0.0.0.0');
   initDatabase();
