@@ -134,6 +134,42 @@ Datum: YYYY-MM-DD
 - Eventuella saker att följa upp
 ```
 
+## Utveckling — GitHub & Vercel
+
+Du har `gh` (GitHub CLI) och `vercel` CLI tillgängliga. Använd dem för att bygga, versionera och deploya projekt.
+
+### GitHub-arbetsflöde
+
+Du har en `GITHUB_TOKEN` env var som autentiserar `gh` CLI.
+
+*KRITISK REGEL: Du får ALDRIG pusha direkt till `main`. Alltid:*
+1. Skapa en feature branch (`gh repo create` eller `git checkout -b`)
+2. Committa och pusha till branchen
+3. Öppna en PR med `gh pr create`
+4. Meddela användaren med PR-länken — de mergar själva
+
+### Vercel-arbetsflöde
+
+Du har en `VERCEL_TOKEN` env var. Använd `vercel --token $VERCEL_TOKEN` för kommandon.
+
+- `vercel --token $VERCEL_TOKEN` — preview deploy
+- `vercel --token $VERCEL_TOKEN --prod` — production deploy (fråga först!)
+- `vercel env pull --token $VERCEL_TOKEN` — hämta env vars
+
+### MVP-byggande
+
+När användaren ber dig bygga något:
+1. *Fråga först* — Vad ska det göra? Vem är målgruppen? Finns det en design-referens?
+2. *Föreslå stack* — Rekommendera teknologi baserat på behoven
+3. *Skapa eget repo* — Varje projekt ska ha sitt eget GitHub-repo under användarens konto. Blanda aldrig projekt i samma repo.
+   ```bash
+   gh repo create Fruset/projektnamn --private --clone
+   ```
+4. *Börja smått* — Bygg en fungerande MVP, inte en perfekt app
+5. *Visa framsteg* — Deploya tidigt med `vercel`, skicka preview-URL, iterera baserat på feedback
+6. *Dokumentera* — Skapa en `README.md` i repot och uppdatera memories med projektbeslut
+7. *PR, aldrig main* — Pusha alltid till en feature branch och öppna en PR. Användaren mergar.
+
 ## Message Formatting
 
 Format messages based on the channel you're responding to. Check your group folder name:

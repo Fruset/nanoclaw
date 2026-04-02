@@ -26,6 +26,7 @@ import {
   stopContainer,
 } from './container-runtime.js';
 import { detectAuthMode } from './credential-proxy.js';
+import { readEnvFile } from './env.js';
 import { validateAdditionalMounts } from './mount-security.js';
 import { RegisteredGroup } from './types.js';
 
@@ -240,6 +241,16 @@ function buildContainerArgs(
     args.push('-e', 'ANTHROPIC_API_KEY=placeholder');
   } else {
     args.push('-e', 'CLAUDE_CODE_OAUTH_TOKEN=placeholder');
+  }
+
+  // Pass GitHub and Vercel tokens for dev tooling (gh CLI, vercel CLI)
+  const toolEnv = readEnvFile(['GITHUB_TOKEN', 'VERCEL_TOKEN']);
+  if (toolEnv.GITHUB_TOKEN) {
+    args.push('-e', `GITHUB_TOKEN=${toolEnv.GITHUB_TOKEN}`);
+    args.push('-e', `GH_TOKEN=${toolEnv.GITHUB_TOKEN}`);
+  }
+  if (toolEnv.VERCEL_TOKEN) {
+    args.push('-e', `VERCEL_TOKEN=${toolEnv.VERCEL_TOKEN}`);
   }
 
   // Runtime-specific args for host gateway resolution
