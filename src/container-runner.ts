@@ -310,6 +310,9 @@ function buildContainerArgs(
     if (value) args.push('-e', `${key}=${value}`);
   }
 
+  // Plejd Bluetooth bridge runs on macOS host, container reaches it via gateway
+  args.push('-e', `PLEJD_BRIDGE_URL=http://${CONTAINER_HOST_GATEWAY}:3002`);
+
   // Runtime-specific args for host gateway resolution
   args.push(...hostGatewayArgs());
 
