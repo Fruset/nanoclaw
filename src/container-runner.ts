@@ -24,6 +24,7 @@ import {
   hostGatewayArgs,
   readonlyMountArgs,
   stopContainer,
+  stopContainersForGroup,
 } from './container-runtime.js';
 import { detectAuthMode } from './credential-proxy.js';
 import { readEnvFile } from './env.js';
@@ -238,7 +239,7 @@ function buildContainerArgs(
     '--name',
     containerName,
     '-m',
-    '4g',
+    '8g',
     '--cpus',
     '4',
   ];
@@ -294,6 +295,20 @@ function buildContainerArgs(
     args.push('-e', `VERCEL_TOKEN=${toolEnv.VERCEL_TOKEN}`);
   }
 
+  // Pass smart home and AI service tokens
+  const serviceEnv = readEnvFile([
+    'PLEJD_EMAIL',
+    'PLEJD_PASSWORD',
+    'PLEJD_GATEWAY_IP',
+    'SMARTTHINGS_TOKEN',
+    'SMARTTHINGS_LOCATION_ID',
+    'ELEVENLABS_API_KEY',
+    'ELEVENLABS_VOICE_ID',
+  ]);
+  for (const [key, value] of Object.entries(serviceEnv)) {
+    if (value) args.push('-e', `${key}=${value}`);
+  }
+
   // Runtime-specific args for host gateway resolution
   args.push(...hostGatewayArgs());
 
@@ -340,6 +355,10 @@ export async function runContainerAgent(
 
   const mounts = buildVolumeMounts(group, input.isMain);
   const safeName = group.folder.replace(/[^a-zA-Z0-9-]/g, '-');
+
+  // Stop any stale containers for this group to free bound ports (4000-4010)
+  stopContainersForGroup(`nanoclaw-${safeName}-`);
+
   const containerName = `nanoclaw-${safeName}-${Date.now()}`;
   const containerArgs = buildContainerArgs(mounts, containerName, input.isMain);
 

@@ -114,6 +114,35 @@ export function ensureContainerRuntimeRunning(): void {
   }
 }
 
+/** Stop all running NanoClaw containers whose name starts with the given prefix. */
+export function stopContainersForGroup(prefix: string): void {
+  try {
+    const output = execSync(`${CONTAINER_RUNTIME_BIN} ls --format json`, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      encoding: 'utf-8',
+      timeout: 10000,
+    });
+    const containers: { status: string; configuration: { id: string } }[] =
+      JSON.parse(output || '[]');
+    const stale = containers
+      .filter(
+        (c) =>
+          c.status === 'running' && c.configuration.id.startsWith(prefix),
+      )
+      .map((c) => c.configuration.id);
+    for (const name of stale) {
+      try {
+        stopContainer(name);
+        logger.info({ containerName: name }, 'Stopped stale container before spawn');
+      } catch {
+        // Already stopped or timed out — move on
+      }
+    }
+  } catch (err) {
+    logger.warn({ err, prefix }, 'Failed to stop stale containers for group');
+  }
+}
+
 /** Kill orphaned NanoClaw containers from previous runs. */
 export function cleanupOrphans(): void {
   try {

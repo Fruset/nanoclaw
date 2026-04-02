@@ -58,6 +58,7 @@ vi.mock('./container-runtime.js', () => ({
   hostGatewayArgs: () => [],
   readonlyMountArgs: (h: string, c: string) => ['-v', `${h}:${c}:ro`],
   stopContainer: vi.fn(),
+  stopContainersForGroup: vi.fn(),
 }));
 
 // Mock credential-proxy
