@@ -15,6 +15,23 @@ Maximalt **3–5 sub-agenter simultant** (RAM-gräns 4 GB). PM serialiserar arbe
 | **Wave 3** | Testaren + Säkerhetsagenten | QA |
 | **Wave 4** | GAMET Reviewer | Slutlig granskning |
 
+## Telegram Swarm — Sender-identitet
+
+**VIKTIGT:** När en sub-agent rapporterar progress via `send_message`, MÅSTE den ange `sender` med sitt rollnamn. Detta gör att meddelandet skickas från rätt bot i Telegram-gruppen.
+
+```
+send_message(text="Arkitektur klar för granskning", sender="Arkitekt")
+```
+
+| Rollnamn (sender) | Bot |
+|---|---|
+| `PM`, `Scrum Master` | PM Bot (Odin) |
+| `Arkitekt`, `Byggare`, `DB`, `DevOps` | Generalist 1 (Thor) |
+| `Designer`, `Copywriter`, `Researcher`, `Testare` | Generalist 2 (Freya) |
+| `GAMET`, `Reviewer`, `Säkerhetsagent` | GAMET Bot (Tyr) |
+
+Utan `sender` faller meddelandet tillbaka till Göran P (huvudboten).
+
 ---
 
 ## 1. PM / Scrum Master

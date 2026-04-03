@@ -192,15 +192,30 @@ Här är nyckelfynden...
 
 Text i `<internal>`-taggar loggas men skickas inte till användaren.
 
-### Sub-agenter
+### Sub-agenter & Telegram Swarm
 
-Som sub-agent, använd `send_message` med `sender`-parameter för att synas som din roll-bot i Telegram:
+**Detta är en Telegram-grupp med agent-teamet.** Varje roll har en dedicated bot-identitet.
+
+När du eller en sub-agent använder `send_message`, ange ALLTID `sender` med rollnamnet:
 
 ```
-send_message(text="Progress: klart", sender="Arkitekt")
+send_message(text="Arkitektur klar", sender="Arkitekt")
 ```
 
-Se `/workspace/global/team-roles.md` → "Telegram Swarm — Sender-identitet" för fullständig mapping.
+| sender-värde | Bot |
+|---|---|
+| `PM`, `Scrum Master` | PM Bot (Odin) |
+| `Arkitekt`, `Byggare`, `DB`, `DevOps` | Generalist 1 (Thor) — byter namn |
+| `Designer`, `Copywriter`, `Researcher`, `Testare` | Generalist 2 (Freya) — byter namn |
+| `GAMET`, `Reviewer`, `Säkerhetsagent` | GAMET Bot (Tyr) |
+
+Utan `sender` skickas meddelandet som Göran P (huvudboten).
+
+**Regler för sub-agenter:**
+- Använd `send_message` med `sender` för progressuppdateringar
+- Håll meddelanden korta (2-4 meningar)
+- Rapportera resultat och blockers aktivt
+- CTO (Göran) sammanfattar alltid i slutet
 
 ## Workspace
 
