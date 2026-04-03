@@ -229,12 +229,31 @@ function buildVolumeMounts(
 }
 
 /**
- * Dev-server port allocation (4000-4010).
- * Only one container at a time can bind these ports. We track which container
- * holds them and probe with lsof on startup to handle process restarts where
- * ports are still held by a container from a previous NanoClaw process.
+ * Dev-server port allocation.
+ * Each main group gets a deterministic port range so multiple main containers
+ * can run concurrently without port conflicts. Range size is 11 ports (for
+ * dev servers on ports 4000-4010, 4011-4021, etc.).
+ *
+ * Group "telegram_main" always gets 4000-4010 (first slot) for backward compat.
+ * Other groups get ranges based on a stable hash of their folder name.
  */
-let devPortsOwner: string | null = null;
+const PORT_RANGE_SIZE = 11;
+const PORT_BASE = 4000;
+const MAX_GROUPS = 5; // Support up to 5 concurrent main groups (4000-4054)
+
+function groupPortBase(groupFolder: string): number {
+  // telegram_main always gets the first slot for backward compatibility
+  if (groupFolder === 'telegram_main' || groupFolder === 'whatsapp_main') {
+    return PORT_BASE;
+  }
+  // Stable hash → slot index (1 through MAX_GROUPS-1, slot 0 reserved above)
+  let hash = 0;
+  for (let i = 0; i < groupFolder.length; i++) {
+    hash = ((hash << 5) - hash + groupFolder.charCodeAt(i)) | 0;
+  }
+  const slot = 1 + (Math.abs(hash) % (MAX_GROUPS - 1));
+  return PORT_BASE + slot * PORT_RANGE_SIZE;
+}
 
 function isPortInUse(port: number): boolean {
   try {
@@ -245,24 +264,11 @@ function isPortInUse(port: number): boolean {
   }
 }
 
-function canClaimDevPorts(): boolean {
-  if (devPortsOwner) return false; // Another container in this process has them
-  if (isPortInUse(4000)) return false; // Port held by external process or stale container
-  return true;
-}
-
-/** Call when a container that owned dev ports exits, so the next one can claim them. */
-export function releaseDevPorts(containerName: string): void {
-  if (devPortsOwner === containerName) {
-    devPortsOwner = null;
-    logger.debug({ containerName }, 'Dev-server ports released');
-  }
-}
-
 function buildContainerArgs(
   mounts: VolumeMount[],
   containerName: string,
   isMain: boolean,
+  groupFolder: string,
 ): string[] {
   const args: string[] = [
     'run',
@@ -276,15 +282,16 @@ function buildContainerArgs(
     '4',
   ];
 
-  // Expose dev server ports for main containers so user can access via localhost.
-  // Use 4000-4010 to avoid conflicts with credential proxy (3001) and common dev ports.
-  // Only bind if the ports are actually free — avoids crashes when multiple main
-  // containers run concurrently (e.g. telegram_main + telegram_team).
-  if (isMain && canClaimDevPorts()) {
-    for (let port = 4000; port <= 4010; port++) {
-      args.push('-p', `${port}:${port}`);
+  // Expose dev server ports for main containers. Each group gets its own
+  // deterministic port range so multiple main containers can coexist.
+  // Skip if the base port is already in use (stale container from previous process).
+  if (isMain) {
+    const basePort = groupPortBase(groupFolder);
+    if (!isPortInUse(basePort)) {
+      for (let port = basePort; port < basePort + PORT_RANGE_SIZE; port++) {
+        args.push('-p', `${port}:${port}`);
+      }
     }
-    devPortsOwner = containerName;
   }
 
   // Pass host timezone so container's local time matches the user's
@@ -398,7 +405,7 @@ export async function runContainerAgent(
   stopContainersForGroup(`nanoclaw-${safeName}-`);
 
   const containerName = `nanoclaw-${safeName}-${Date.now()}`;
-  const containerArgs = buildContainerArgs(mounts, containerName, input.isMain);
+  const containerArgs = buildContainerArgs(mounts, containerName, input.isMain, group.folder);
 
   // Voice context — lets agent know user sent a voice message, so it should prefer send_voice
   if (input.isVoiceMessage) {
@@ -563,7 +570,6 @@ export async function runContainerAgent(
 
     container.on('close', (code) => {
       clearTimeout(timeout);
-      releaseDevPorts(containerName);
       const duration = Date.now() - startTime;
 
       if (timedOut) {
