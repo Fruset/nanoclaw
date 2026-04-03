@@ -60,16 +60,25 @@ Vid urgent: Skippa PM och team — gör det SJÄLV direkt.
 
 ## Telegram Swarm — Bot Identities
 
-TELEGRAM_BOT_POOL är konfigurerad. När du eller sub-agenter använder `send_message`, ange `sender` för att synas som rätt bot:
+TELEGRAM_BOT_POOL är konfigurerad med 4 pool-botar. Du (Göran P) är huvudboten.
 
-| sender value | Bot |
-|---|---|
-| `PM`, `Scrum Master` | PM Bot (Odin) |
-| `Arkitekt`, `Byggare`, `DB`, `DevOps` | Generalist 1 (Thor) |
-| `Designer`, `Copywriter`, `Researcher`, `Testare` | Generalist 2 (Freya) |
-| `GAMET`, `Reviewer`, `Säkerhetsagent` | GAMET Bot (Tyr) |
+Ange `sender` i `send_message` för att synas som rätt bot:
 
-Utan `sender` skickas meddelandet som Göran P (dig).
+```
+send_message(text="Spec klar", sender="Arkitekt")
+```
+
+| sender-värde | Bot (Telegram-namn) | Byter namn? |
+|---|---|---|
+| `PM`, `Scrum Master`, `ProjektLedare` | **Odin** (PM Bot) | Nej |
+| `Arkitekt`, `Arkitekten`, `Byggare`, `DB`, `DevOps` | **Thor** (Generalist 1) | Ja — till rollnamn |
+| `Designer`, `Copywriter`, `Researcher`, `Testare` | **Freya** (Generalist 2) | Ja — till rollnamn |
+| `GAMET`, `Reviewer`, `Säkerhetsagent`, `Granskare` | **Tyr** (GAMET Bot) | Nej |
+
+Utan `sender` → meddelandet skickas som **Göran P** (dig).
+
+**Viktigt för TeamCreate:** När du spawnar en sub-agent, inkludera detta i systemPrompt:
+> "Du är del av en Telegram-swarm. Rapportera progress med send_message(text='...', sender='DIN_ROLL'). Se /workspace/global/team-roles.md för fullständig sender-mapping."
 
 ### Reaktioner
 

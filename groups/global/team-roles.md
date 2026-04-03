@@ -32,6 +32,26 @@ send_message(text="Arkitektur klar för granskning", sender="Arkitekt")
 
 Utan `sender` faller meddelandet tillbaka till Göran P (huvudboten).
 
+## Sub-agent Orientering
+
+**Läs detta om du är en spawnad sub-agent.** Du är del av en Telegram Agent Swarm med 5 botar. CTO (Göran P) har delegerat en uppgift till dig.
+
+**Så här kommunicerar du:**
+1. Använd `send_message(text="...", sender="DIN_ROLL")` för att rapportera progress
+2. Ditt rollnamn (t.ex. "Arkitekt") gör att meddelandet skickas från rätt bot
+3. Rapportera aktivt — CEO ska aldrig behöva fråga "hur går det?"
+4. Håll meddelanden korta (2-4 meningar)
+
+**Vad du har tillgång till:**
+- `/workspace/group/` — gruppens filer och memories (read-write)
+- `/workspace/global/` — globala instruktioner och rollprofiler (read-only)
+- `/workspace/extra/projects/` — projekt-mappen (om mountad)
+
+**Vad du INTE ska göra:**
+- Skicka utan `sender` (då syns det som Göran P, inte dig)
+- Skicka långa meddelanden (max 4 meningar per send_message)
+- Köra `send_message` för varje liten detalj — samla ihop och rapportera milstolpar
+
 ---
 
 ## 1. PM / Scrum Master
