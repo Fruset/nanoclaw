@@ -2,7 +2,7 @@
  * Container Runner for NanoClaw
  * Spawns agent execution in containers and handles IPC
  */
-import { ChildProcess, spawn } from 'child_process';
+import { ChildProcess, execFileSync, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -228,6 +228,37 @@ function buildVolumeMounts(
   return mounts;
 }
 
+/**
+ * Dev-server port allocation (4000-4010).
+ * Only one container at a time can bind these ports. We track which container
+ * holds them and probe with lsof on startup to handle process restarts where
+ * ports are still held by a container from a previous NanoClaw process.
+ */
+let devPortsOwner: string | null = null;
+
+function isPortInUse(port: number): boolean {
+  try {
+    execFileSync('lsof', ['-i', `:${port}`, '-t'], { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function canClaimDevPorts(): boolean {
+  if (devPortsOwner) return false; // Another container in this process has them
+  if (isPortInUse(4000)) return false; // Port held by external process or stale container
+  return true;
+}
+
+/** Call when a container that owned dev ports exits, so the next one can claim them. */
+export function releaseDevPorts(containerName: string): void {
+  if (devPortsOwner === containerName) {
+    devPortsOwner = null;
+    logger.debug({ containerName }, 'Dev-server ports released');
+  }
+}
+
 function buildContainerArgs(
   mounts: VolumeMount[],
   containerName: string,
@@ -245,12 +276,15 @@ function buildContainerArgs(
     '4',
   ];
 
-  // Expose dev server ports for main containers so user can access via localhost
-  // Use 4000-4010 to avoid conflicts with credential proxy (3001) and common dev ports
-  if (isMain) {
+  // Expose dev server ports for main containers so user can access via localhost.
+  // Use 4000-4010 to avoid conflicts with credential proxy (3001) and common dev ports.
+  // Only bind if the ports are actually free — avoids crashes when multiple main
+  // containers run concurrently (e.g. telegram_main + telegram_team).
+  if (isMain && canClaimDevPorts()) {
     for (let port = 4000; port <= 4010; port++) {
       args.push('-p', `${port}:${port}`);
     }
+    devPortsOwner = containerName;
   }
 
   // Pass host timezone so container's local time matches the user's
@@ -529,6 +563,7 @@ export async function runContainerAgent(
 
     container.on('close', (code) => {
       clearTimeout(timeout);
+      releaseDevPorts(containerName);
       const duration = Date.now() - startTime;
 
       if (timedOut) {
