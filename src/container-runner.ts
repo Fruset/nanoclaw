@@ -181,10 +181,16 @@ function buildVolumeMounts(
       }
     }
     // Sync plugin cache (contains actual plugin code)
+    // Use dereference to resolve symlinks and force to overwrite existing
     const cacheSrc = path.join(hostPluginsDir, 'cache');
     const cacheDst = path.join(groupSessionsDir, 'plugins', 'cache');
     if (fs.existsSync(cacheSrc)) {
-      fs.cpSync(cacheSrc, cacheDst, { recursive: true });
+      try {
+        if (fs.existsSync(cacheDst)) fs.rmSync(cacheDst, { recursive: true });
+        fs.cpSync(cacheSrc, cacheDst, { recursive: true, dereference: true });
+      } catch (err) {
+        logger.warn({ err }, 'Plugin cache sync failed — continuing without plugins');
+      }
     }
   }
   mounts.push({

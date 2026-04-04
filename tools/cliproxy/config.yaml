@@ -1,0 +1,5 @@
+port: 9091
+auth-dir: "/Users/freddyk/github/nanoclaw/tools/cliproxy"
+
+codex-auth:
+  - file: /Users/freddyk/github/nanoclaw/tools/cliproxy/codex-fredrik.jonsson8888@gmail.com-plus.json
