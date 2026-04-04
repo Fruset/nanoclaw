@@ -352,18 +352,27 @@ export class GroupQueue {
     this.shuttingDown = true;
 
     // Count active containers but don't kill them — they'll finish on their own
-    // via idle timeout or container timeout. The --rm flag cleans them up on exit.
-    // This prevents WhatsApp reconnection restarts from killing working agents.
+    // Kill active containers on shutdown to prevent Apple Container zombies.
+    // Previously we detached them (left running), but Apple Container's
+    // `container stop` hangs on detached containers, creating zombies that
+    // block port allocation on the next start.
     const activeContainers: string[] = [];
     for (const [_jid, state] of this.groups) {
       if (state.process && !state.process.killed && state.containerName) {
         activeContainers.push(state.containerName);
+        try {
+          state.process.kill('SIGTERM');
+        } catch {
+          // Already dead
+        }
       }
     }
 
-    logger.info(
-      { activeCount: this.activeCount, detachedContainers: activeContainers },
-      'GroupQueue shutting down (containers detached, not killed)',
-    );
+    if (activeContainers.length > 0) {
+      logger.info(
+        { activeCount: this.activeCount, killedContainers: activeContainers },
+        'GroupQueue shutting down (containers killed)',
+      );
+    }
   }
 }
