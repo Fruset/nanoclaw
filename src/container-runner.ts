@@ -4,6 +4,7 @@
  */
 import { ChildProcess, execFileSync, spawn } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
 import {
@@ -162,6 +163,28 @@ function buildVolumeMounts(
       if (!fs.statSync(srcDir).isDirectory()) continue;
       const dstDir = path.join(skillsDst, skillDir);
       fs.cpSync(srcDir, dstDir, { recursive: true });
+    }
+  }
+
+  // Sync plugins from host's ~/.claude/plugins/ into group session
+  // This gives containers access to marketplace plugins (codex, superpowers, etc.)
+  const homeDir = process.env.HOME || os.homedir();
+  const hostPluginsDir = path.join(homeDir, '.claude', 'plugins');
+  if (fs.existsSync(hostPluginsDir)) {
+    const pluginFiles = ['installed_plugins.json', 'known_marketplaces.json'];
+    for (const file of pluginFiles) {
+      const src = path.join(hostPluginsDir, file);
+      const dst = path.join(groupSessionsDir, 'plugins', file);
+      if (fs.existsSync(src)) {
+        fs.mkdirSync(path.dirname(dst), { recursive: true });
+        fs.copyFileSync(src, dst);
+      }
+    }
+    // Sync plugin cache (contains actual plugin code)
+    const cacheSrc = path.join(hostPluginsDir, 'cache');
+    const cacheDst = path.join(groupSessionsDir, 'plugins', 'cache');
+    if (fs.existsSync(cacheSrc)) {
+      fs.cpSync(cacheSrc, cacheDst, { recursive: true });
     }
   }
   mounts.push({
