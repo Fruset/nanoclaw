@@ -310,6 +310,12 @@ function buildContainerArgs(
     args.push('-e', `GIT_COMMITTER_EMAIL=${gitEmail}`);
   }
 
+  // Pass model override if configured (e.g. claude-sonnet-4-6, claude-opus-4-6)
+  const modelEnv = readEnvFile(['NANOCLAW_MODEL']);
+  if (modelEnv.NANOCLAW_MODEL) {
+    args.push('-e', `NANOCLAW_MODEL=${modelEnv.NANOCLAW_MODEL}`);
+  }
+
   // Route API traffic through the credential proxy (containers never see real secrets)
   args.push(
     '-e',
