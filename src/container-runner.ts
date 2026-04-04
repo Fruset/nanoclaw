@@ -311,10 +311,11 @@ function buildContainerArgs(
     '4',
   ];
 
-  // Expose dev server ports for main containers. Each group gets its own
-  // deterministic port range so multiple main containers can coexist.
-  // Skip if the base port is already in use (stale container from previous process).
-  if (isMain) {
+  // Expose dev server ports only for the primary main groups (telegram_main, whatsapp_main).
+  // Other main groups (telegram_team etc.) don't need ports — their dashboard
+  // runs on the host. Port binding is the #1 source of container startup failures
+  // due to Apple Container's slow port release after container stop.
+  if (isMain && (groupFolder === 'telegram_main' || groupFolder === 'whatsapp_main')) {
     const basePort = groupPortBase(groupFolder);
     if (!isPortInUse(basePort)) {
       for (let port = basePort; port < basePort + PORT_RANGE_SIZE; port++) {
