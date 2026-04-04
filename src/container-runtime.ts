@@ -114,8 +114,8 @@ export function ensureContainerRuntimeRunning(): void {
   }
 }
 
-/** Stop all running NanoClaw containers whose name starts with the given prefix. */
-export function stopContainersForGroup(prefix: string): void {
+/** Stop all running NanoClaw containers whose name starts with the given prefix. Returns count stopped. */
+export function stopContainersForGroup(prefix: string): number {
   try {
     const output = execSync(`${CONTAINER_RUNTIME_BIN} ls --format json`, {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -138,8 +138,10 @@ export function stopContainersForGroup(prefix: string): void {
         // Already stopped or timed out — move on
       }
     }
+    return stale.length;
   } catch (err) {
     logger.warn({ err, prefix }, 'Failed to stop stale containers for group');
+    return 0;
   }
 }
 

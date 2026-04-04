@@ -436,8 +436,14 @@ export async function runContainerAgent(
   const mounts = buildVolumeMounts(group, input.isMain);
   const safeName = group.folder.replace(/[^a-zA-Z0-9-]/g, '-');
 
-  // Stop any stale containers for this group to free bound ports (4000-4010)
-  stopContainersForGroup(`nanoclaw-${safeName}-`);
+  // Stop any stale containers for this group to free bound ports
+  const stoppedContainers = stopContainersForGroup(`nanoclaw-${safeName}-`);
+
+  // Apple Container needs time to release ports after stop.
+  // Wait briefly if we stopped containers to avoid "Address already in use".
+  if (stoppedContainers > 0 && input.isMain) {
+    await new Promise((r) => setTimeout(r, 3000));
+  }
 
   const containerName = `nanoclaw-${safeName}-${Date.now()}`;
   const containerArgs = buildContainerArgs(mounts, containerName, input.isMain, group.folder);
